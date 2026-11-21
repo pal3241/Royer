@@ -10,6 +10,7 @@ import { Movement } from "./core/movement.js";
 import { Chat } from "./core/chat.js";
 import { GameJoin } from "./core/game_join.js";
 import { createVisionService } from "./vision/index.js";
+import { PluginManager } from "./plugin.js";
 
 export class RobloxBot extends RobloxEventEmitter {
   constructor(options = {}) {
@@ -23,6 +24,7 @@ export class RobloxBot extends RobloxEventEmitter {
     this.movement = null;
     this.chat = null;
     this.game = null;
+    this.plugins = new PluginManager(this);
     this._started = false;
   }
 
@@ -162,6 +164,40 @@ export class RobloxBot extends RobloxEventEmitter {
   async listFriends() {
     if (!this.game) throw new Error("Bot not started. Call start() first.");
     return this.game.listFriends();
+  }
+
+  /**
+   * Load a plugin into the bot (mineflayer-style bot.use()).
+   * @param {Function|Object} plugin - Plugin function or { apply(bot, options) }
+   * @param {Object} options - Plugin options
+   */
+  use(plugin, options = {}) {
+    return this.plugins.use(plugin, options);
+  }
+
+  /**
+   * Unload a plugin by name.
+   */
+  unuse(name) {
+    return this.plugins.unload(name);
+  }
+
+  /**
+   * Check if a plugin is loaded.
+   */
+  hasPlugin(name) {
+    return this.plugins.has(name);
+  }
+
+  /**
+   * Get a loaded plugin by name.
+   */
+  getPlugin(name) {
+    return this.plugins.get(name);
+  }
+
+  get loadedPlugins() {
+    return this.plugins.names;
   }
 
   async joinServer(gameId, jobId) {

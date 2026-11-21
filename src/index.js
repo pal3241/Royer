@@ -28,3 +28,6 @@ export {
   TransportError,
   NotImplementedError,
 } from "./exceptions.js";
+
+export { PluginManager, PluginError } from "./plugin.js";
+export { pathfinding, PathfindingPlugin } from "./plugins/pathfinding.js";

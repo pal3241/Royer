@@ -285,6 +285,123 @@ This is **static metadata only** — not real-time geometry. For live map data, 
 
 ---
 
+## Plugin System
+
+robloxbot has a mineflayer-style plugin system. Plugins are JavaScript modules that extend the bot with new capabilities. Load them with `bot.use(plugin, options)`.
+
+### Using a plugin
+
+```js
+import { RobloxBot, pathfinding } from "robloxbot";
+
+const bot = new RobloxBot({ username, password });
+await bot.start();
+
+// Load the built-in pathfinding plugin
+bot.use(pathfinding, { gridSize: 32 });
+
+bot.pathfinder.setGrid(myGrid);
+bot.pathfinder.setGoal(10, 5);
+await bot.pathfinder.goTo(10, 5);
+
+await bot.stop();
+```
+
+### Plugin API
+
+A plugin is either:
+
+- **A function:** `(bot, options) => void`
+- **An object:** `{ name, apply(bot, options), unload?(bot) }`
+
+```js
+// Example: a simple chat-logger plugin
+function chatLogger(bot, options) {
+  const prefix = options.prefix || "[LOG]";
+  bot.on("chat", (msg) => {
+    console.log(`${prefix} ${msg.player}: ${msg.message}`);
+  });
+}
+chatLogger.name = "chatLogger";
+
+bot.use(chatLogger, { prefix: "[BOT]" });
+
+// Unload later
+bot.unuse("chatLogger");
+```
+
+Bot methods for plugins:
+
+| Method | Description |
+|--------|-------------|
+| `bot.use(plugin, options)` | Load a plugin |
+| `bot.unuse(name)` | Unload a plugin by name |
+| `bot.hasPlugin(name)` | Check if a plugin is loaded |
+| `bot.getPlugin(name)` | Get a loaded plugin instance |
+| `bot.loadedPlugins` | Array of loaded plugin names |
+
+### Building third-party plugins
+
+Publish your plugin as a separate npm package (e.g. `robloxbot-myplugin`). Users install it with:
+
+```bash
+# NOTE: npm does not have "npm plugin add". Use npm install:
+npm install robloxbot-myplugin
+```
+
+Then import and use it:
+
+```js
+import { RobloxBot } from "robloxbot";
+import myPlugin from "robloxbot-myplugin";
+
+const bot = new RobloxBot({ username, password });
+bot.use(myPlugin, { /* options */ });
+```
+
+A plugin package should export a function or object with `apply(bot, options)`. See `src/plugins/pathfinding.js` for a reference implementation.
+
+### Built-in: pathfinding
+
+`src/plugins/pathfinding.js` — grid-based A* pathfinding.
+
+```js
+import { pathfinding } from "robloxbot";
+
+bot.use(pathfinding, { gridSize: 16, diagonalMovement: false });
+
+// Set up the walkable grid (0 = walkable, 1 = blocked)
+bot.pathfinder.setGrid(grid2d, width, height);
+
+// Mark individual cells
+bot.pathfinder.setWalkable(x, z, true);
+
+// Find a path
+const path = bot.pathfinder.findPath({ x: 0, z: 0 }, { x: 10, z: 5 });
+
+// Follow it (walks each step via bot.walk())
+await bot.pathfinder.followPath(path);
+
+// Or combine find + follow
+await bot.pathfinder.goTo(10, 5);
+```
+
+Pathfinding methods:
+
+| Method | Description |
+|--------|-------------|
+| `setGrid(grid, w, h)` | Set the 2D walkability grid |
+| `setStart(x, z)` | Set start cell |
+| `setGoal(x, z)` | Set goal cell |
+| `isWalkable(x, z)` | Check if a cell is walkable |
+| `setWalkable(x, z, bool)` | Mark a cell walkable/blocked |
+| `findPath(start, goal)` | A* pathfinding, returns cell array or `null` |
+| `followPath(path, opts)` | Walk each step via `bot.walk()` |
+| `goTo(x, z, opts)` | Find path + follow in one call |
+
+---
+
+
 ## Transport layer
 
 Two transports implement the same `Transport` ABC:
@@ -436,7 +553,7 @@ test/
 Run tests and lint before submitting:
 
 ```bash
-npm test        # vitest — 34 tests
+npm test        # vitest — 48 tests
 npm run lint    # eslint
 npm run format  # prettier
 ```

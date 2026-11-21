@@ -1,14 +1,22 @@
 /**
  * Movement actions — routed through the active transport.
- * Stubbed until RakNet packet framing is implemented.
+ *
+ * When RakNet isn't implemented (the common case today), movement still
+ * updates the bot's local character state so position tracking works.
+ * Set `simulationMode: true` in bot options to skip transport entirely
+ * and run purely locally (useful for testing on Termux without RakNet).
  */
 
-import { NotImplementedError } from "../exceptions.js";
-
 export class Movement {
-  constructor(transport, character) {
+  constructor(transport, character, options = {}) {
     this.transport = transport;
     this.character = character;
+    this.simulationMode = options.simulationMode || false;
+    this._position = { x: 0, y: 0, z: 0 };
+    this._velocity = { x: 0, y: 0, z: 0 };
+
+    // Approximate studs per second for each direction (Roblox default walkspeed ~16 studs/s)
+    this._studsPerSecond = 16;
   }
 
   async walk(direction, duration = 1) {
@@ -17,28 +25,56 @@ export class Movement {
       throw new Error(`Invalid walk direction: ${direction}`);
     }
 
-    if (this.transport.connected && this.transport.send) {
+    const dirMap = {
+      f: { x: 0, z: -1 },
+      b: { x: 0, z: 1 },
+      l: { x: -1, z: 0 },
+      r: { x: 1, z: 0 },
+      forward: { x: 0, z: -1 },
+      back: { x: 0, z: 1 },
+      left: { x: -1, z: 0 },
+      right: { x: 1, z: 0 },
+    };
+
+    const move = dirMap[dir];
+    const distance = this._studsPerSecond * duration;
+
+    // Try to send via transport if connected and not in simulation mode
+    if (!this.simulationMode && this.transport && this.transport.connected && this.transport.send) {
       try {
         await this.transport.send({
           opcode: 0x84,
           type: "movement",
           direction: dir,
           duration,
+          studs: distance,
         });
       } catch (err) {
         if (err.name === "NotImplementedError") {
-          // RakNet not implemented — no-op with a warning
-          console.warn("[robloxbot] walk() is a stub: RakNet not implemented.");
+          // RakNet not implemented — fall back to local simulation
+          console.warn("[robloxbot] walk() falling back to local simulation: RakNet not implemented.");
         } else {
           throw err;
         }
       }
-    } else {
-      console.warn("[robloxbot] walk() is a stub: no active transport.");
+    } else if (!this.simulationMode) {
+      console.warn("[robloxbot] walk() running in local simulation: no active transport.");
     }
 
-    this.character.position = { x: 0, y: 0, z: 0 };
-    return { direction: dir, duration, sent: this.transport.connected };
+    // Update local character state (works with or without RakNet)
+    this._position.x += move.x * distance;
+    this._position.z += move.z * distance;
+    this.character.position = { ...this._position };
+    this.character.alive = true;
+
+    return {
+      direction: dir,
+      duration,
+      distance,
+      position: { ...this._position },
+      sent: !this.simulationMode && this.transport ? this.transport.connected : false,
+      simulated: this.simulationMode || !this.transport?.connected,
+    };
   }
 
   async walkForward(duration = 1) {
@@ -53,12 +89,12 @@ export class Movement {
     return this.walk("l", duration);
   }
 
-  async walkRight(duration = duration => 1) {
+  async walkRight(duration = 1) {
     return this.walk("r", duration);
   }
 
   async jump(count = 1, interval = 0) {
-    if (this.transport.connected && this.transport.send) {
+    if (!this.simulationMode && this.transport && this.transport.connected && this.transport.send) {
       try {
         await this.transport.send({
           opcode: 0x84,
@@ -68,14 +104,44 @@ export class Movement {
         });
       } catch (err) {
         if (err.name === "NotImplementedError") {
-          console.warn("[robloxbot] jump() is a stub: RakNet not implemented.");
+          console.warn("[robloxbot] jump() falling back to local simulation: RakNet not implemented.");
         } else {
           throw err;
         }
       }
-    } else {
-      console.warn("[robloxbot] jump() is a stub: no active transport.");
+    } else if (!this.simulationMode) {
+      console.warn("[robloxbot] jump() running in local simulation: no active transport.");
     }
-    return { count, interval, sent: this.transport.connected };
+
+    // Local jump simulation: briefly raise Y position then return
+    const jumpHeight = 5; // studs
+    for (let i = 0; i < count; i++) {
+      this._position.y += jumpHeight;
+      this.character.position = { ...this._position };
+      if (i < count - 1 && interval > 0) {
+        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+      }
+      this._position.y -= jumpHeight;
+      this.character.position = { ...this._position };
+    }
+    this.character.alive = true;
+
+    return { count, interval, position: { ...this._position }, simulated: this.simulationMode || !this.transport?.connected };
+  }
+
+  get position() {
+    return { ...this._position };
+  }
+
+  setPosition(x, y, z) {
+    this._position = { x, y, z };
+    this.character.position = { ...this._position };
+  }
+
+  reset() {
+    this._position = { x: 0, y: 0, z: 0 };
+    this.character.position = { ...this._position };
   }
 }
+
+export default Movement;

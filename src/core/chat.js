@@ -1,10 +1,17 @@
 /**
  * Chat actions — routed through the active transport.
+ *
+ * When RakNet isn't implemented, chat still emits local events so the
+ * bot can react to its own messages. Set `simulationMode: true` in bot
+ * options to skip transport entirely.
  */
 
 export class Chat {
-  constructor(transport) {
+  constructor(transport, bot = null, options = {}) {
     this.transport = transport;
+    this.bot = bot;
+    this.simulationMode = options.simulationMode || false;
+    this._messageHistory = [];
   }
 
   async say(message) {
@@ -12,29 +19,46 @@ export class Chat {
       throw new Error("Chat message must be a non-empty string.");
     }
 
-    if (this.transport.connected && this.transport.send) {
-      try {
-        await this.transport.send({
-          opcode: 0x83,
-          type: "chat",
-          message,
-        });
-      } catch (err) {
-        if (err.name === "NotImplementedError") {
-          console.warn("[robloxbot] chat() is a stub: RakNet not implemented.");
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      console.warn("[robloxbot] chat() is a stub: no active transport.");
+    const sent = this._sendViaTransport({ opcode: 0x83, type: "chat", message });
+
+    // Local state — always recorded, with or without RakNet
+    const chatEntry = { message, to: "all", timestamp: Date.now(), sent };
+    this._messageHistory.push(chatEntry);
+
+    // Emit local event so listeners can react
+    if (this.bot) {
+      this.bot.emit("message", { ...chatEntry });
+      this.bot.emit("chat", { player: this.bot.character?.username || "bot", message });
     }
 
-    return { message, sent: this.transport.connected };
+    return { message, sent, simulated: !sent };
   }
 
   async whisper(player, message) {
     return this.say(`/w ${player} ${message}`);
+  }
+
+  _sendViaTransport(packet) {
+    if (this.simulationMode) return false;
+    if (!this.transport || !this.transport.connected || !this.transport.send) return false;
+
+    try {
+      this.transport.send(packet);
+      return true;
+    } catch (err) {
+      if (err.name === "NotImplementedError") {
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  get messageHistory() {
+    return [...this._messageHistory];
+  }
+
+  clearHistory() {
+    this._messageHistory = [];
   }
 }
 

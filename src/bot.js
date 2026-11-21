@@ -42,8 +42,12 @@ export class RobloxBot extends RobloxEventEmitter {
 
     await this.client.connect();
 
-    this.movement = new Movement(this.client.transport, this.character);
-    this.chat = new Chat(this.client.transport);
+    this.movement = new Movement(this.client.transport, this.character, {
+      simulationMode: this.options.simulationMode,
+    });
+    this.chat = new Chat(this.client.transport, this, {
+      simulationMode: this.options.simulationMode,
+    });
     this.game = new GameJoin(this.client.transport);
 
     // Auto-create vision service and wire map fetch to the transport.
@@ -108,16 +112,12 @@ export class RobloxBot extends RobloxEventEmitter {
 
   async chat(message) {
     if (!this.chat) throw new Error("Bot not started. Call start() first.");
-    const result = await this.chat.say(message);
-    this.emit("message", { message, to: "all", ...result });
-    return result;
+    return this.chat.say(message);
   }
 
   async whisper(player, message) {
     if (!this.chat) throw new Error("Bot not started. Call start() first.");
-    const result = await this.chat.whisper(player, message);
-    this.emit("message", { message, to: player, ...result });
-    return result;
+    return this.chat.whisper(player, message);
   }
 
   async walk(direction, duration = 1) {

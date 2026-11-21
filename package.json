@@ -1,0 +1,26 @@
+{
+  "name": "robloxbot",
+  "version": "0.1.0",
+  "description": "A mineflayer-style headless Roblox bot library for Node.js/Termux",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint src test",
+    "format": "prettier --write src test"
+  },
+  "dependencies": {
+    "axios": "^1.8.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.0"
+  },
+  "keywords": ["roblox", "bot", "mineflayer", "headless", "raknet"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

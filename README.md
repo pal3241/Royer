@@ -399,7 +399,54 @@ Pathfinding methods:
 | `followPath(path, opts)` | Walk each step via `bot.walk()` |
 | `goTo(x, z, opts)` | Find path + follow in one call |
 
+### Built-in: visionPathfinding
+
+`src/plugins/vision-pathfinding.js` — YOLO-guided pathfinding. Uses object detection to spot goals and obstacles, builds a walkability grid, then runs A* to find the distance and route.
+
+```js
+import { visionPathfinding } from "robloxbot";
+
+bot.use(visionPathfinding, {
+  gridSize: 32,          // grid cells per side
+  pixelsPerCell: 50,     // how many image pixels = 1 grid cell
+  goalLabels: ["player", "goal"],   // YOLO labels treated as goal
+  obstacleLabels: ["wall", "obstacle", "npc", "object"], // YOLO labels treated as blocked
+});
+
+// Step 1: YOLO looks at an image and finds goal + obstacles
+const detections = await bot.vision.detector.detect(imageBuffer);
+
+// Step 2: Convert detections to a walkability grid
+bot.visionPathfinding.processDetections(detections, imageWidth, imageHeight);
+
+// Step 3: Ask "how far is the goal?"
+const distance = bot.visionPathfinding.getDistanceToGoal();
+// → 7 (Manhattan distance in cells)
+
+// Step 4: Find and follow the path
+await bot.visionPathfinding.followPathToGoal();
+// Walks step by step toward the goal, avoiding detected obstacles
+
+// Or do it all in one call (detect → grid → path → walk)
+await bot.visionPathfinding.navigateFromImage(imageBuffer, imageWidth, imageHeight);
+```
+
+Methods:
+
+| Method | Description |
+|--------|-------------|
+| `setBotPosition(x, z)` | Set bot's current grid cell |
+| `setGoal(x, z)` | Manually set goal cell |
+| `setCell(x, z, walkable)` | Mark a cell walkable/blocked |
+| `clearGrid()` | Reset grid and goal |
+| `processDetections(detections, imgW, imgH, opts)` | Convert YOLO detections to grid |
+| `getDistanceToGoal()` | Manhattan distance bot→goal (null if no goal) |
+| `findPathToGoal()` | A* pathfinding, returns {found, distance, path} |
+| `followPathToGoal(opts)` | Find path + walk each step via bot.walk() |
+| `navigateFromImage(imageBuffer, imgW, imgH, opts)` | Detect → grid → path → walk in one call |
+
 ---
+
 
 
 ## Transport layer
@@ -553,7 +600,7 @@ test/
 Run tests and lint before submitting:
 
 ```bash
-npm test        # vitest — 48 tests
+npm test        # vitest — 59 tests
 npm run lint    # eslint
 npm run format  # prettier
 ```

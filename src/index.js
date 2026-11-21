@@ -31,3 +31,4 @@ export {
 
 export { PluginManager, PluginError } from "./plugin.js";
 export { pathfinding, PathfindingPlugin } from "./plugins/pathfinding.js";
+export { visionPathfinding, VisionPathfindingPlugin } from "./plugins/vision-pathfinding.js";

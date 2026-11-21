@@ -110,6 +110,49 @@ export class WebTransport extends Transport {
     return;
   }
 
+  /**
+   * Fetch-compatible helper for MapInject and other consumers.
+   * Wraps the authenticated axios instance and returns a Response-like object.
+   */
+  async fetch(url, init = {}) {
+    if (!this._connected) {
+      throw new TransportError("Not connected. Call connect() first.");
+    }
+    const method = (init.method || "GET").toUpperCase();
+    try {
+      let res;
+      if (method === "GET") {
+        res = await this._client.get(url, {
+          params: init.params || undefined,
+          headers: init.headers || undefined,
+        });
+      } else if (method === "POST") {
+        res = await this._client.post(url, init.body, {
+          headers: init.headers || undefined,
+        });
+      } else {
+        res = await this._client.request({ method, url, ...init });
+      }
+      return {
+        ok: true,
+        status: res.status,
+        statusText: res.statusText,
+        json: async () => res.data,
+        text: async () => typeof res.data === "string" ? res.data : JSON.stringify(res.data),
+        headers: res.headers || {},
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: err.response ? err.response.status : 0,
+        statusText: err.message,
+        json: async () => ({ error: err.message }),
+        text: async () => err.message,
+        headers: {},
+      };
+    }
+  }
+
   async joinGame(gameId) {
     if (!this._connected) {
       throw new TransportError("Not connected. Call connect() first.");

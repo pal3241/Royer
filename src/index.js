@@ -6,7 +6,12 @@ export { RobloxBot } from "./bot.js";
 export { RobloxClient } from "./client.js";
 export { Transport } from "./transport/base.js";
 export { WebTransport } from "./transport/web.js";
-export { RakNetTransport } from "./transport/raknet.js";
+export {
+  RakNetTransport,
+  encodePacket,
+  decodePacket,
+  isPacketDefined,
+} from "./transport/raknet.js";
 export { Character } from "./core/character.js";
 export { Movement } from "./core/movement.js";
 export { Chat } from "./core/chat.js";

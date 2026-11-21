@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn==0.32.1
+pillow==11.0.0
+python-multipart==0.0.9
+openai==1.50.0
+# YOLO object detection (optional — torch is heavy; may not install on Termux)
+# ultralytics==8.3.50
+# Alternative lightweight YOLO via ONNX:
+# onnxruntime==1.19.2

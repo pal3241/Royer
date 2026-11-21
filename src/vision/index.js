@@ -79,40 +79,112 @@ export class VLM {
 }
 
 /**
- * Map injection plugin interface — STUB.
+ * Map detection — headless alternative to client-side script injection.
  *
- * Ceiling / why this is a stub:
+ * Ceiling / why this is not "real" map injection:
  *   A headless RakNet client has no Roblox client process to inject Lua into,
- *   so client-side script injection for map detection is not possible here.
+ *   so client-side script injection for map detection is impossible here.
  *
- * Options for the future:
- *   1. Fetch map/asset data via Roblox web API (limited geometry, not real-time).
+ * What this class does instead:
+ *   Uses the Roblox web API (place info, asset details, universe data) to
+ *   gather static map metadata without being in-game. This is NOT real-time
+ *   geometry — it's useful for knowing what place/assets a game uses, not for
+ *   live obstacle detection.
+ *
+ * Options for live map data:
+ *   1. Fetch place/asset metadata via Roblox web API (this class).
  *   2. Relay observations from a real Roblox client on a companion device.
- *   3. Parse map data from place files downloaded via the web API.
- *
- * This file defines the plugin interface so callers can wire in their own
- * map-detection strategy without changing bot internals.
+ *   3. Parse place files (.rbxlx/.rbxl) downloaded via the web API.
  */
 
 export class MapInject {
   constructor(options = {}) {
     this.options = options;
     this.enabled = false;
+    // An authenticated fetch-like function: (url, init) => Promise<Response>
+    this._fetch = options.fetch || null;
+  }
+
+  /**
+   * Inject an authenticated fetch function so MapInject can call Roblox APIs.
+   * Pass WebTransport's fetch-compatible method or a wrapper around fetch.
+   */
+  setFetch(fetchFn) {
+    this._fetch = fetchFn;
   }
 
   async enable() {
-    throw new Error(
-      "Map injection is not supported headlessly. " +
-        "See src/vision/map_inject.js for the ceiling and alternatives."
-    );
+    if (!this._fetch) {
+      throw new Error(
+        "MapInject needs an authenticated fetch function. Call map.setFetch(transport.fetch) " +
+          "or pass fetch when creating the vision service."
+      );
+    }
+    this.enabled = true;
   }
 
   async disable() {
     this.enabled = false;
   }
 
-  async scan() {
-    throw new Error("Map scan is not implemented headlessly.");
+  /**
+   * Fetch static metadata for a place (game) via the Roblox web API.
+   * Returns place name, description, creator, universe id, etc.
+   */
+  async scan(placeId) {
+    if (!this.enabled) {
+      throw new Error("MapInject not enabled. Call enable() first.");
+    }
+    if (!this._fetch) {
+      throw new Error("No fetch function configured. Call setFetch() first.");
+    }
+
+    const id = Number(placeId);
+    const urls = [
+      `https://games.roblox.com/v1/games/${id}`,
+      `https://api.roblox.com/universes/get-universe-containing-place?placeid=${id}`,
+    ];
+
+    const results = {};
+    for (const url of urls) {
+      try {
+        const res = await this._fetch(url);
+        if (res.ok) {
+          results[url] = await res.json();
+        } else {
+          results[url] = { error: `HTTP ${res.status}` };
+        }
+      } catch (err) {
+        results[url] = { error: err.message };
+      }
+    }
+
+    return { placeId: id, enabled: true, data: results, scannedAt: Date.now() };
+  }
+
+  /**
+   * Fetch asset metadata for an asset ID (e.g. a mesh, texture, or model used in a map).
+   */
+  async scanAsset(assetId) {
+    if (!this.enabled) {
+      throw new Error("MapInject not enabled. Call enable() first.");
+    }
+    if (!this._fetch) {
+      throw new Error("No fetch function configured. Call setFetch() first.");
+    }
+
+    const id = Number(assetId);
+    const url = `https://assetdelivery.roblox.com/v1/asset/?id=${id}`;
+    try {
+      const res = await this._fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        return { assetId: id, data };
+      }
+      return { assetId: id, error: `HTTP ${res.status}` };
+    } catch (err) {
+      return { assetId: id, error: err.message };
+    }
   }
 }
 
@@ -125,3 +197,4 @@ export function createVisionService(options = {}) {
     map: new MapInject(options),
   };
 }
+

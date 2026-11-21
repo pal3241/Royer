@@ -221,9 +221,13 @@ bot.on("error", (err) => console.error("Bot error:", err.message));
 
 Vision is opt-in and calls an external Python/HTTP service (native Node vision modules don't compile reliably on Termux). Set `VISION_SERVICE_URL` in `.env`.
 
+The vision service lives in `vision-service/` — a FastAPI backend with YOLO detection and VLM/LLM understanding.
+
 ```js
 import { createVisionService } from "./src/index.js";
 
+// Auto-created when you start the bot: bot.vision
+// Or standalone:
 const vision = createVisionService();
 
 // YOLO detection
@@ -241,18 +245,43 @@ const answer = await vision.vlm.ask("What is the player doing?");
 
 The `detector.defaultLabel` is `"player"` — configurable via `createVisionService({ defaultLabel: "object" })`.
 
+Start the service:
+
+```bash
+cd vision-service
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+Then point robloxbot at it:
+
+```
+VISION_SERVICE_URL=http://<host>:8000
+```
+
+See `vision-service/README.md` for full setup (including Termux notes).
+
 ### Map detection
 
-`vision.map` is a stub with a documented ceiling:
+`vision.map` provides a headless alternative to client-side script injection. A headless RakNet client has no Roblox client process to inject Lua into, so live map injection is impossible. Instead, `MapInject` fetches static place/asset metadata via the Roblox web API:
 
 ```js
 const vision = createVisionService();
 
-// Throws — headless RakNet has no Roblox client to inject Lua into
+// Wire the map to the bot's authenticated transport (auto-wired when using bot.vision)
+vision.map.setFetch(bot.client.transport.fetch.bind(bot.client.transport));
 await vision.map.enable();
+
+// Fetch static metadata for a place (game)
+const info = await vision.map.scan(12345678);
+// → { placeId: 12345678, enabled: true, data: {...}, scannedAt: ... }
+
+// Fetch metadata for a specific asset (mesh, texture, model)
+const asset = await vision.map.scanAsset(987654321);
+// → { assetId: 987654321, data: {...} }
 ```
 
-See `src/vision/map_inject.js` for the full ceiling explanation and alternatives (web API asset fetch, or relay observations from a real Roblox client on a companion device).
+This is **static metadata only** — not real-time geometry. For live map data, relay observations from a real Roblox client on a companion device, or parse downloaded place files (`.rbxlx`).
 
 ---
 
@@ -262,8 +291,8 @@ Two transports implement the same `Transport` ABC:
 
 | Transport | File | Status |
 |-----------|------|--------|
-| `RakNetTransport` | `src/transport/raknet.js` | Stub — `connect()`/`send()` throw `NotImplementedError` |
-| `WebTransport` | `src/transport/web.js` | ✅ Real — Roblox web API (join, friends, servers, presence) |
+| `RakNetTransport` | `src/transport/raknet.js` | Skeleton — packet encode/decode helpers + `NotImplementedError` on connect/send |
+| `WebTransport` | `src/transport/web.js` | ✅ Real — Roblox web API (join, friends, servers, presence, fetch) |
 
 `RobloxClient` defaults to RakNet and auto-falls back to Web when RakNet isn't implemented. You can also inject your own transport:
 
@@ -274,6 +303,8 @@ const client = new RobloxClient({
   transport: new WebTransport({ cookie: process.env.ROBLOSECURITY }),
 });
 ```
+
+The RakNet skeleton includes `encodePacket()` / `decodePacket()` helpers and field descriptors in `src/constants/packets.js`. To make RakNet real, implement socket + handshake in `connect()` and RakNet framing in `send()`, then fill in real field layouts as you reverse-engineer the protocol.
 
 ---
 
@@ -358,8 +389,8 @@ src/
   utils.js              # loadEnv, sleep, buildRobloxUri
   transport/
     base.js             # Transport ABC interface
-    raknet.js           # RakNet headless protocol (stub)
-    web.js              # Roblox web API (real implementation)
+    raknet.js           # RakNet headless skeleton (encode/decode + stubs)
+    web.js              # Roblox web API (real implementation + fetch)
   core/
     character.js        # Character state tracking
     movement.js         # Walk/jump (stubbed over transport)
@@ -369,7 +400,11 @@ src/
     index.js            # VisionDetector, VLM, MapInject, createVisionService
   constants/
     keys.js             # Keybind constants
-    packets.js          # RakNet packet opcode skeleton
+    packets.js          # RakNet packet opcode + field skeleton
+vision-service/
+  main.py               # FastAPI vision backend (YOLO + VLM)
+  requirements.txt      # Python dependencies
+  README.md             # Vision service setup (incl. Termux notes)
 test/
   bot.test.js
   transport.test.js
@@ -382,10 +417,10 @@ test/
 
 | Item | Ceiling / Plan |
 |------|---------------|
-| RakNet packet spec | Reverse-engineer Roblox's game protocol; wire opcodes in `src/constants/packets.js` and `src/transport/raknet.js` |
-| Real walk/jump/chat | Requires RakNet framing; currently stubbed with clear warnings |
-| Map injection | Impossible headlessly — no Roblox client process to inject Lua into. Alternatives: web API asset fetch, or relay from a real client |
-| Native vision on Termux | `onnxruntime-node` / `sharp` don't compile reliably; external HTTP vision service recommended |
+| RakNet packet spec | Skeleton in place (`packets.js`, `raknet.js`); fill real field layouts as you reverse-engineer the protocol |
+| Real walk/jump/chat | Requires RakNet socket + framing; currently stubbed with clear warnings |
+| Map injection | Impossible headlessly — `MapInject` uses web API for static place/asset metadata instead |
+| Native vision on Termux | `torch`/`ultralytics` may not compile; external Python vision service recommended |
 | CAPTCHA / 2FA login | Use `ROBLOSESCURITY` cookie directly |
 
 ---
@@ -401,7 +436,7 @@ test/
 Run tests and lint before submitting:
 
 ```bash
-npm test        # vitest — 26 tests
+npm test        # vitest — 34 tests
 npm run lint    # eslint
 npm run format  # prettier
 ```

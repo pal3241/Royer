@@ -9,6 +9,7 @@ import { Character } from "./core/character.js";
 import { Movement } from "./core/movement.js";
 import { Chat } from "./core/chat.js";
 import { GameJoin } from "./core/game_join.js";
+import { createVisionService } from "./vision/index.js";
 
 export class RobloxBot extends RobloxEventEmitter {
   constructor(options = {}) {
@@ -16,6 +17,7 @@ export class RobloxBot extends RobloxEventEmitter {
     this.options = options;
     this.client = options.client || null;
     this._ownsClient = false;
+    this.vision = options.vision || null;
 
     this.character = new Character();
     this.movement = null;
@@ -41,6 +43,14 @@ export class RobloxBot extends RobloxEventEmitter {
     this.movement = new Movement(this.client.transport, this.character);
     this.chat = new Chat(this.client.transport);
     this.game = new GameJoin(this.client.transport);
+
+    // Auto-create vision service and wire map fetch to the transport.
+    if (!this.vision) {
+      this.vision = createVisionService(this.options.vision || {});
+    }
+    if (this.vision.map && this.client.transport.fetch) {
+      this.vision.map.setFetch(this.client.transport.fetch.bind(this.client.transport));
+    }
 
     this._bindTransportEvents();
     this._started = true;

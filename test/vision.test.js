@@ -21,8 +21,20 @@ describe("Vision service", () => {
     await expect(svc.vlm.ask("hi")).rejects.toThrow(/VISION_SERVICE_URL/);
   });
 
-  it("map.enable throws headlessly", async () => {
+  it("map.enable throws without fetch configured", async () => {
     const svc = createVisionService({});
-    await expect(svc.map.enable()).rejects.toThrow(/not supported headlessly/);
+    await expect(svc.map.enable()).rejects.toThrow(/authenticated fetch/);
+  });
+
+  it("map.enable succeeds when fetch is configured", async () => {
+    const svc = createVisionService({});
+    svc.map.setFetch(async (url) => ({ ok: true, status: 200, json: async () => ({}) }));
+    await expect(svc.map.enable()).resolves.toBeUndefined();
+    expect(svc.map.enabled).toBe(true);
+  });
+
+  it("map.scan throws when not enabled", async () => {
+    const svc = createVisionService({});
+    await expect(svc.map.scan(12345)).rejects.toThrow(/not enabled/);
   });
 });

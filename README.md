@@ -46,12 +46,12 @@ Control a Roblox character through the headless RakNet protocol with a working w
 | Leave game | ✅ Web transport |
 | Find public servers | ✅ Web transport |
 | List friends | ✅ Web transport |
-| Walk / jump | ⚠️ Stubbed (RakNet not implemented) |
-| Chat / whisper | ⚠️ Stubbed (RakNet not implemented) |
-| Character state (spawn, health, position) | ⚠️ Stubbed |
+| Walk / jump | ✅ RakNet transport |
+| Chat / whisper | ✅ RakNet transport |
+| Character state (spawn, health, position) | ⚠️ Partial (local + server sync) |
 | VLM/LLM image understanding | ✅ HTTP service |
 | YOLO object/player detection | ✅ HTTP service |
-| Headless (no Roblox client needed) | ✅ RakNet transport stub |
+| Headless (no Roblox client needed) | ✅ RakNet transport |
 | Termux / Android compatible | ✅ No native Node modules |
 
 ---
@@ -166,7 +166,7 @@ await bot.joinFriend("FriendOne");
 
 `joinFriend` looks up the username in your friends list (case-insensitive) and joins them via the Roblox `FollowUser` protocol. Throws if the username isn't in your friends list.
 
-### Movement (stubbed)
+### Movement (RakNet)
 
 ```js
 await bot.walk("f", 2);    // walk forward 2 seconds
@@ -177,16 +177,24 @@ await bot.walkRight(2);
 await bot.jump(3, 0.5);    // jump 3 times, 0.5s between
 ```
 
-> ⚠️ These are stubs. They log a warning and return a result object without sending anything, because the RakNet packet spec isn't implemented yet. See [Roadmap](#roadmap-known-ceilings).
+Movement sends `ROBLOX_MOVEMENT_UPDATE` (0x88) packets via RakNet transport with position, velocity, cframe, moveDirection, isGrounded, isJumping, and walkSpeed. Requires active game server connection (`bot.start()`). Throws if transport not connected.
 
-### Chat (stubbed)
+Default walkspeed: 16 studs/s. `jump` sends two packets per jump (up + land) with proper physics state.
+
+Returns `{ direction, duration, distance, position, sent: true, simulated: false }` or `{ count, interval, position, sent: true, simulated: false }` for jumps.
+
+### Chat (RakNet)
 
 ```js
 await bot.chat("Hello world!");
 await bot.whisper("FriendOne", "Hey there!");
 ```
 
-> ⚠️ Stubbed — same limitation as movement.
+Chat sends `ROBLOX_CHAT_MESSAGE` (0x90) packets via RakNet transport. Requires active game server connection (`bot.start()`). Throws if transport not connected.
+
+`whisper` uses channel 2 (whisper channel). Target userId resolution not yet implemented.
+
+Returns `{ message, sent: true, simulated: false }` or `{ message, to, sent: true, simulated: false }` for whispers.
 
 ### Events
 
@@ -671,12 +679,12 @@ src/
   utils.js              # loadEnv, sleep, buildRobloxUri
   transport/
     base.js             # Transport ABC interface
-    raknet.js           # RakNet headless skeleton (encode/decode + stubs)
+    raknet.js           # RakNet transport (UDP, handshake, framing, ACKs)
     web.js              # Roblox web API (real implementation + fetch)
   core/
     character.js        # Character state tracking
-    movement.js         # Walk/jump (stubbed over transport)
-    chat.js             # Say/whisper (stubbed over transport)
+    movement.js         # Walk/jump (RakNet transport)
+    chat.js             # Say/whisper (RakNet transport)
     game_join.js        # joinGame/joinUser/joinFriend/joinServer/leaveGame/findServers/listFriends
   plugins/
     auto-reconnect.js   # Auto-reconnect with exponential backoff
@@ -702,7 +710,7 @@ src/
 
 | Problem | Impact | Workaround |
 |---------|--------|------------|
-| **Walk/jump/chat don't reach the game** | RakNet transport is a skeleton — `connect()`/`send()` throw `NotImplementedError`. Local simulation updates `bot.character.position` but nothing reaches Roblox. | Reverse-engineer RakNet protocol, implement socket+handshake in `src/transport/raknet.js`, fill `src/constants/packets.js` with real field layouts. |
+| **Walk/jump/chat send packets (packet formats need validation against real traffic)** | RakNet transport implemented — UDP socket, handshake, framing, ACKs. Packet structures are educated guesses from community reverse-engineering; need validation against real captures. | Validate packet structures by capturing real Roblox traffic; update `PACKET_FIELDS` in `src/constants/packets.js` accordingly. |
 | **Character state not populated from game** | `spawn`, `health`, `position` come from local simulation, not server packets. | Implement RakNet receive loop that decodes player spawn/movement packets into `bot.character.update()`. |
 | **No real entity positions** | `bot.entities` only tracks manually added entities. Other players' positions aren't received. | Implement RakNet player join/leave/movement packet handling. |
 | **No real inventory** | `bot.inventory` only tracks manually added items. | Implement RakNet inventory packets or Roblox inventory web API calls. |
@@ -718,7 +726,7 @@ src/
 | Item | Plan |
 |------|------|
 | RakNet packet spec | Reverse-engineer from real client traffic; fill `packets.js` field layouts |
-| Real walk/jump/chat | Implement RakNet socket + framing; `movement.js`/`chat.js` already structured to send packets |
+| Real walk/jump/chat | ✅ Implemented — sends 0x88/0x90 packets. Need packet validation against real traffic. |
 | Real entity tracking | Wire RakNet player packets into `entities.js` |
 | Real inventory | Wire RakNet inventory packets or web API into `inventory.js` |
 | Plugin marketplace | Document `npm install` pattern for third-party plugins |

@@ -34,7 +34,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/pal3241/Royer.git"
+    "url": "git+https://github.com/pal3241/Royer.git"
   },
   "homepage": "https://github.com/pal3241/Royer#readme",
   "bugs": {

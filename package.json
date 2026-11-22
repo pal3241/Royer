@@ -1,6 +1,6 @@
 {
   "name": "@xx_amaba_xx/robloxbot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A mineflayer-style headless Roblox bot library for Node.js/Termux",
   "main": "src/index.js",
   "type": "module",
@@ -18,7 +18,13 @@
     "eslint": "^9.0.0",
     "prettier": "^3.2.0"
   },
-  "keywords": ["roblox", "bot", "mineflayer", "headless", "raknet"],
+  "keywords": [
+    "roblox",
+    "bot",
+    "mineflayer",
+    "headless",
+    "raknet"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=18"

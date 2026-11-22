@@ -42,12 +42,8 @@ export class RobloxBot extends RobloxEventEmitter {
 
     await this.client.connect();
 
-    this.movement = new Movement(this.client.transport, this.character, {
-      simulationMode: this.options.simulationMode,
-    });
-    this.chat = new Chat(this.client.transport, this, {
-      simulationMode: this.options.simulationMode,
-    });
+    this.movement = new Movement(this.client.transport, this.character);
+    this.chat = new Chat(this.client.transport, this);
     this.game = new GameJoin(this.client.transport);
 
     // Auto-create vision service and wire map fetch to the transport.

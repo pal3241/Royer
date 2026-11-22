@@ -1,17 +1,22 @@
 /**
- * Chat actions — routed through the active transport.
- *
- * When RakNet isn't implemented, chat still emits local events so the
- * bot can react to its own messages. Set `simulationMode: true` in bot
- * options to skip transport entirely.
+ * Chat actions — routed through the RakNet transport.
+ * Requires an active RakNet connection to the Roblox game server.
  */
 
 export class Chat {
-  constructor(transport, bot = null, options = {}) {
+  constructor(transport, bot = null) {
     this.transport = transport;
     this.bot = bot;
-    this.simulationMode = options.simulationMode || false;
     this._messageHistory = [];
+  }
+
+  _requireTransport() {
+    if (!this.transport || !this.transport.connected) {
+      throw new Error("Chat requires an active RakNet transport connection. Call bot.start() first.");
+    }
+    if (!this.transport.send) {
+      throw new Error("Transport does not implement send(). Is RakNet transport active?");
+    }
   }
 
   async say(message) {
@@ -19,7 +24,9 @@ export class Chat {
       throw new Error("Chat message must be a non-empty string.");
     }
 
-    const sent = this._sendViaTransport({
+    this._requireTransport();
+
+    const packet = {
       opcode: 0x90,
       userId: this.bot?.character?.userId || 0,
       username: this.bot?.character?.username || "bot",
@@ -27,24 +34,29 @@ export class Chat {
       channel: 0,
       targetUserId: 0,
       timestamp: Date.now(),
-    });
+    };
 
-    // Local state — always recorded, with or without RakNet
-    const chatEntry = { message, to: "all", timestamp: Date.now(), sent };
+    await this.transport.send(packet);
+
+    const chatEntry = { message, to: "all", timestamp: Date.now(), sent: true };
     this._messageHistory.push(chatEntry);
 
-    // Emit local event so listeners can react
     if (this.bot) {
       this.bot.emit("message", { ...chatEntry });
       this.bot.emit("chat", { player: this.bot.character?.username || "bot", message });
     }
 
-    return { message, sent, simulated: !sent };
+    return { message, sent: true, simulated: false };
   }
 
   async whisper(player, message) {
-    // Whisper uses channel 2 with targetUserId
-    const sent = this._sendViaTransport({
+    if (!message || typeof message !== "string") {
+      throw new Error("Chat message must be a non-empty string.");
+    }
+
+    this._requireTransport();
+
+    const packet = {
       opcode: 0x90,
       userId: this.bot?.character?.userId || 0,
       username: this.bot?.character?.username || "bot",
@@ -52,9 +64,11 @@ export class Chat {
       channel: 2,
       targetUserId: 0, // Would need to resolve player name to userId
       timestamp: Date.now(),
-    });
+    };
 
-    const chatEntry = { message, to: player, timestamp: Date.now(), sent };
+    await this.transport.send(packet);
+
+    const chatEntry = { message, to: player, timestamp: Date.now(), sent: true };
     this._messageHistory.push(chatEntry);
 
     if (this.bot) {
@@ -62,22 +76,7 @@ export class Chat {
       this.bot.emit("chat", { player: this.bot.character?.username || "bot", message });
     }
 
-    return { message, to: player, sent, simulated: !sent };
-  }
-
-  _sendViaTransport(packet) {
-    if (this.simulationMode) return false;
-    if (!this.transport || !this.transport.connected || !this.transport.send) return false;
-
-    try {
-      this.transport.send(packet);
-      return true;
-    } catch (err) {
-      if (err.name === "NotImplementedError") {
-        return false;
-      }
-      throw err;
-    }
+    return { message, to: player, sent: true, simulated: false };
   }
 
   get messageHistory() {

@@ -1,5 +1,5 @@
 {
-  "name": "robloxbot",
+  "name": "@xx_amaba_xx/robloxbot",
   "version": "0.1.0",
   "description": "A mineflayer-style headless Roblox bot library for Node.js/Termux",
   "main": "src/index.js",
@@ -22,5 +22,16 @@
   "license": "MIT",
   "engines": {
     "node": ">=18"
+  },
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pal3241/Royer.git"
+  },
+  "homepage": "https://github.com/pal3241/Royer#readme",
+  "bugs": {
+    "url": "https://github.com/pal3241/Royer/issues"
   }
 }

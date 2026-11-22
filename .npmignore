@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules
+test
+vision-service
+*.log
+.DS_Store
+.vscode
+.idea
+coverage
+*.tsbuildinfo

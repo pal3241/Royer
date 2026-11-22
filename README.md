@@ -4,7 +4,7 @@
 
 Control a Roblox character through the headless RakNet protocol with a working web-transport fallback for joining games, users, servers, and friends — today.
 
-[![npm version](https://img.shields.io/npm/v/robloxbot)](https://www.npmjs.com/package/robloxbot)
+[![npm version](https://img.shields.io/npm/v/@xx_amaba_xx/robloxbot)](https://www.npmjs.com/package/@xx_amaba_xx/robloxbot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -59,12 +59,7 @@ Control a Roblox character through the headless RakNet protocol with a working w
 ## Installation
 
 ```bash
-# Clone
-git clone https://github.com/pal3241/Royer.git
-cd Royer
-
-# Install dependencies
-npm install
+npm install @xx_amaba_xx/robloxbot
 ```
 
 Requires **Node.js ≥ 18**. Works on Linux, Windows, macOS, and **Termux (Android)**.
@@ -109,7 +104,7 @@ VISION_SERVICE_URL=http://localhost:8000
 ### `new RobloxBot(options)`
 
 ```js
-import { RobloxBot } from "./src/index.js";
+import { RobloxBot } from "@xx_amaba_xx/robloxbot";
 
 const bot = new RobloxBot({
   username: process.env.ROBLOX_USERNAME,
@@ -261,6 +256,8 @@ VISION_SERVICE_URL=http://<host>:8000
 
 See `vision-service/README.md` for full setup (including Termux notes).
 
+> **Note:** The vision service is a separate Python/FastAPI project. It's not included in the npm package — clone the repo if you need it.
+
 ### Map detection
 
 `vision.map` provides a headless alternative to client-side script injection. A headless RakNet client has no Roblox client process to inject Lua into, so live map injection is impossible. Instead, `MapInject` fetches static place/asset metadata via the Roblox web API:
@@ -292,7 +289,7 @@ robloxbot has a mineflayer-style plugin system. Plugins are JavaScript modules t
 ### Using a plugin
 
 ```js
-import { RobloxBot, pathfinding } from "robloxbot";
+import { RobloxBot, pathfinding } from "@xx_amaba_xx/robloxbot";
 
 const bot = new RobloxBot({ username, password });
 await bot.start();
@@ -352,7 +349,7 @@ npm install robloxbot-myplugin
 Then import and use it:
 
 ```js
-import { RobloxBot } from "robloxbot";
+import { RobloxBot } from "@xx_amaba_xx/robloxbot";
 import myPlugin from "robloxbot-myplugin";
 
 const bot = new RobloxBot({ username, password });
@@ -366,7 +363,7 @@ A plugin package should export a function or object with `apply(bot, options)`. 
 `src/plugins/pathfinding.js` — grid-based A* pathfinding.
 
 ```js
-import { pathfinding } from "robloxbot";
+import { pathfinding } from "@xx_amaba_xx/robloxbot";
 
 bot.use(pathfinding, { gridSize: 16, diagonalMovement: false });
 
@@ -404,7 +401,7 @@ Pathfinding methods:
 `src/plugins/vision-pathfinding.js` — YOLO-guided pathfinding. Uses object detection to spot goals and obstacles, builds a walkability grid, then runs A* to find the distance and route.
 
 ```js
-import { visionPathfinding } from "robloxbot";
+import { visionPathfinding } from "@xx_amaba_xx/robloxbot";
 
 bot.use(visionPathfinding, {
   gridSize: 32,          // grid cells per side
@@ -450,7 +447,7 @@ Methods:
 `src/plugins/auto-reconnect.js` — automatically reconnects on disconnect with exponential backoff.
 
 ```js
-import { autoReconnect } from "robloxbot";
+import { autoReconnect } from "@xx_amaba_xx/robloxbot";
 
 bot.use(autoReconnect, {
   maxAttempts: 10,
@@ -471,7 +468,7 @@ Events: `reconnecting`, `reconnected`, `reconnect-error`, `reconnect-failed`
 `src/plugins/commands.js` — chat command framework with prefix, aliases, and cooldowns.
 
 ```js
-import { commands } from "robloxbot";
+import { commands } from "@xx_amaba_xx/robloxbot";
 
 bot.use(commands, { prefix: "!", cooldownMs: 1000 });
 
@@ -489,7 +486,7 @@ Methods: `register(name, handler, opts)`, `unregister(name)`, `get(name)`, `pars
 `src/plugins/macros.js` — record and play back action sequences.
 
 ```js
-import { macros } from "robloxbot";
+import { macros } from "@xx_amaba_xx/robloxbot";
 
 bot.use(macros);
 
@@ -512,7 +509,7 @@ Methods: `record(name)`, `stop()`, `play(name, opts)`, `remove(name)`, `list()`,
 `src/plugins/settings.js` — key-value settings with optional persistence.
 
 ```js
-import { settings } from "robloxbot";
+import { settings } from "@xx_amaba_xx/robloxbot";
 
 bot.use(settings, { defaults: { walkspeed: 16, theme: "dark" } });
 
@@ -531,7 +528,7 @@ Methods: `get(key, fallback)`, `set(key, value)`, `has(key)`, `del(key)`, `all()
 `src/plugins/entities.js` — entity tracking stub (documented ceiling below).
 
 ```js
-import { entities } from "robloxbot";
+import { entities } from "@xx_amaba_xx/robloxbot";
 
 bot.use(entities);
 
@@ -549,7 +546,7 @@ bot.entities.count();
 `src/plugins/inventory.js` — inventory stub (documented ceiling below).
 
 ```js
-import { inventory } from "robloxbot";
+import { inventory } from "@xx_amaba_xx/robloxbot";
 
 bot.use(inventory);
 
@@ -580,7 +577,7 @@ Two transports implement the same `Transport` ABC:
 `RobloxClient` defaults to RakNet and auto-falls back to Web when RakNet isn't implemented. You can also inject your own transport:
 
 ```js
-import { RobloxClient, WebTransport } from "./src/index.js";
+import { RobloxClient, WebTransport } from "@xx_amaba_xx/robloxbot";
 
 const client = new RobloxClient({
   transport: new WebTransport({ cookie: process.env.ROBLOSECURITY }),
@@ -596,7 +593,7 @@ The RakNet skeleton includes `encodePacket()` / `decodePacket()` helpers and fie
 ### Minimal bot
 
 ```js
-import { RobloxBot } from "./src/index.js";
+import { RobloxBot } from "@xx_amaba_xx/robloxbot";
 
 const bot = new RobloxBot({
   username: process.env.ROBLOX_USERNAME,
@@ -614,6 +611,8 @@ await bot.stop();
 ### Join a friend
 
 ```js
+import { RobloxBot } from "@xx_amaba_xx/robloxbot";
+
 const bot = new RobloxBot({ username, password });
 await bot.start();
 
@@ -627,7 +626,7 @@ await bot.stop();
 ### With vision service
 
 ```js
-import { RobloxBot, createVisionService } from "./src/index.js";
+import { RobloxBot, createVisionService } from "@xx_amaba_xx/robloxbot";
 
 const bot = new RobloxBot({ username, password });
 const vision = createVisionService();
@@ -693,16 +692,8 @@ src/
   constants/
     keys.js             # Keybind constants
     packets.js          # RakNet packet opcode + field skeleton
-vision-service/
-  main.py               # FastAPI vision backend (YOLO + VLM)
-  requirements.txt      # Python dependencies
-  README.md             # Vision service setup (incl. Termux notes)
-test/
-  bot.test.js
-  transport.test.js
-  vision.test.js
-  plugins.test.js
-  plugins-extended.test.js
+
+> **Note:** The npm package only includes `src/`. The `vision-service/` and `test/` directories are in the GitHub repo.
 ```
 
 ---
@@ -735,7 +726,6 @@ test/
 ---
 
 ## Contributing
-
 
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feature/your-feature`)

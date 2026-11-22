@@ -1,6 +1,6 @@
 {
   "name": "@xx_amaba_xx/robloxbot",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A mineflayer-style headless Roblox bot library for Node.js/Termux",
   "main": "src/index.js",
   "type": "module",

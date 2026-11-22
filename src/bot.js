@@ -80,6 +80,12 @@ export class RobloxBot extends RobloxEventEmitter {
   }
 
   _handlePacket(packet) {
+    // Handle new packet format from RakNet transport: { opcode, opcodeName, fields }
+    if (packet.opcode !== undefined && packet.fields) {
+      this._handleRakNetPacket(packet);
+      return;
+    }
+    // Legacy format (for web transport or backwards compat)
     switch (packet.type) {
       case "spawn":
         this.character.update({ ...packet.data, spawned: true, alive: true });
@@ -98,6 +104,54 @@ export class RobloxBot extends RobloxEventEmitter {
         this.emit("playerLeave", packet.data);
         break;
       default:
+        break;
+    }
+  }
+
+  _handleRakNetPacket(packet) {
+    const { opcodeName, fields } = packet;
+    switch (opcodeName) {
+      case "ROBLOX_CHARACTER_SPAWN":
+        this.character.update({
+          userId: fields.userId,
+          username: fields.username,
+          position: fields.position,
+          health: fields.health,
+          maxHealth: fields.maxHealth,
+          spawned: true,
+          alive: true,
+        });
+        this.emit("spawn", this.character);
+        break;
+      case "ROBLOX_CHAT_MESSAGE":
+        this.emit("chat", {
+          player: fields.username,
+          message: fields.message,
+        });
+        break;
+      case "ROBLOX_PLAYER_JOIN":
+        this.emit("playerJoin", {
+          userId: fields.userId,
+          username: fields.username,
+          displayName: fields.displayName,
+        });
+        break;
+      case "ROBLOX_PLAYER_LEAVE":
+        this.emit("playerLeave", {
+          userId: fields.userId,
+          reason: fields.reason,
+        });
+        break;
+      case "ROBLOX_MOVEMENT_UPDATE":
+        // Update character position if it's our own character
+        if (fields.userId === this.character.userId) {
+          this.character.position = fields.position;
+        }
+        this.emit("movement", fields);
+        break;
+      default:
+        // Emit raw packet for plugins to handle
+        this.emit("packet:raw", packet);
         break;
     }
   }

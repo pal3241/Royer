@@ -7,7 +7,7 @@
 
 import axios from "axios";
 import { Transport } from "./base.js";
-import { AuthError, TransportError } from "../exceptions.js";
+import { AuthError, TransportError, NotImplementedError } from "../exceptions.js";
 import { buildRobloxUri } from "../utils.js";
 
 const BASE_URL = "https://www.roblox.com";

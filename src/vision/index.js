@@ -188,7 +188,6 @@ export class MapInject {
   }
 }
 
-export { VisionDetector, VLM, MapInject };
 
 export function createVisionService(options = {}) {
   return {

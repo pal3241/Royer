@@ -19,7 +19,15 @@ export class Chat {
       throw new Error("Chat message must be a non-empty string.");
     }
 
-    const sent = this._sendViaTransport({ opcode: 0x83, type: "chat", message });
+    const sent = this._sendViaTransport({
+      opcode: 0x90,
+      userId: this.bot?.character?.userId || 0,
+      username: this.bot?.character?.username || "bot",
+      message,
+      channel: 0,
+      targetUserId: 0,
+      timestamp: Date.now(),
+    });
 
     // Local state — always recorded, with or without RakNet
     const chatEntry = { message, to: "all", timestamp: Date.now(), sent };
@@ -35,7 +43,26 @@ export class Chat {
   }
 
   async whisper(player, message) {
-    return this.say(`/w ${player} ${message}`);
+    // Whisper uses channel 2 with targetUserId
+    const sent = this._sendViaTransport({
+      opcode: 0x90,
+      userId: this.bot?.character?.userId || 0,
+      username: this.bot?.character?.username || "bot",
+      message,
+      channel: 2,
+      targetUserId: 0, // Would need to resolve player name to userId
+      timestamp: Date.now(),
+    });
+
+    const chatEntry = { message, to: player, timestamp: Date.now(), sent };
+    this._messageHistory.push(chatEntry);
+
+    if (this.bot) {
+      this.bot.emit("message", { ...chatEntry });
+      this.bot.emit("chat", { player: this.bot.character?.username || "bot", message });
+    }
+
+    return { message, to: player, sent, simulated: !sent };
   }
 
   _sendViaTransport(packet) {

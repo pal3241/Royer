@@ -4,6 +4,8 @@
  * Defines the interface all transports (RakNet, web fallback) must implement.
  */
 
+import { NotImplementedError } from "../exceptions.js";
+
 export class Transport {
   constructor() {
     this._connected = false;

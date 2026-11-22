@@ -42,12 +42,21 @@ export class Movement {
     // Try to send via transport if connected and not in simulation mode
     if (!this.simulationMode && this.transport && this.transport.connected && this.transport.send) {
       try {
+        // Send movement update packet (ROBLOX_MOVEMENT_UPDATE = 0x88)
         await this.transport.send({
-          opcode: 0x84,
-          type: "movement",
-          direction: dir,
-          duration,
-          studs: distance,
+          opcode: 0x88,
+          userId: this.character.userId || 0,
+          characterId: this.character.userId || 0,
+          position: { x: this._position.x, y: this._position.y, z: this._position.z },
+          velocity: { x: this._velocity.x, y: this._velocity.y, z: this._velocity.z },
+          cframe: {
+            position: { x: this._position.x, y: this._position.y, z: this._position.z },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+          },
+          moveDirection: { x: move.x, y: 0, z: move.z },
+          isGrounded: true,
+          isJumping: false,
+          walkSpeed: this._studsPerSecond,
         });
       } catch (err) {
         if (err.name === "NotImplementedError") {
@@ -96,12 +105,27 @@ export class Movement {
   async jump(count = 1, interval = 0) {
     if (!this.simulationMode && this.transport && this.transport.connected && this.transport.send) {
       try {
-        await this.transport.send({
-          opcode: 0x84,
-          type: "jump",
-          count,
-          interval,
-        });
+        // Send movement update with jump state
+        for (let i = 0; i < count; i++) {
+          await this.transport.send({
+            opcode: 0x88,
+            userId: this.character.userId || 0,
+            characterId: this.character.userId || 0,
+            position: { x: this._position.x, y: this._position.y + 5, z: this._position.z },
+            velocity: { x: 0, y: 20, z: 0 },
+            cframe: {
+              position: { x: this._position.x, y: this._position.y + 5, z: this._position.z },
+              rotation: { x: 0, y: 0, z: 0, w: 1 },
+            },
+            moveDirection: { x: 0, y: 0, z: 0 },
+            isGrounded: false,
+            isJumping: true,
+            walkSpeed: this._studsPerSecond,
+          });
+          if (i < count - 1 && interval > 0) {
+            await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+          }
+        }
       } catch (err) {
         if (err.name === "NotImplementedError") {
           console.warn("[robloxbot] jump() falling back to local simulation: RakNet not implemented.");

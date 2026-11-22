@@ -54,8 +54,8 @@ export class SettingsPlugin {
     const save = async () => {
       if (saveFn) {
         await saveFn(all());
-      } else if (typeof localStorage !== "undefined") {
-        localStorage.setItem("robloxbot-settings", JSON.stringify(all()));
+      } else if (typeof globalThis !== "undefined" && globalThis.localStorage) {
+        globalThis.localStorage.setItem("robloxbot-settings", JSON.stringify(all()));
       }
     };
 
@@ -63,8 +63,8 @@ export class SettingsPlugin {
       let data = {};
       if (loadFn) {
         data = await loadFn();
-      } else if (typeof localStorage !== "undefined") {
-        const raw = localStorage.getItem("robloxbot-settings");
+      } else if (typeof globalThis !== "undefined" && globalThis.localStorage) {
+        const raw = globalThis.localStorage.getItem("robloxbot-settings");
         data = raw ? JSON.parse(raw) : {};
       }
       store.clear();

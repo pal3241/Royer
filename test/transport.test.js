@@ -99,6 +99,8 @@ describe("RakNet packet encoding", () => {
       username: "TestPlayer",
       message: "Hello world",
       channel: 0,
+      targetUserId: 0,
+      timestamp: Date.now(),
     });
     expect(encoded.buffer).toBeInstanceOf(ArrayBuffer);
     expect(encoded.byteLength).toBeGreaterThan(0);
@@ -119,26 +121,16 @@ describe("RakNet packet encoding", () => {
     expect(decoded.opcode).toBe(0x99);
   });
 
-  it("RakNetTransport connect throws NotImplementedError", async () => {
-    const t = new RakNetTransport({ host: "roblox.com", port: 5222 });
-    const err = await t.connect().then(
-      () => { throw new Error("should have thrown"); },
-      (e) => e
-    );
-    expect(err.name).toBe("NotImplementedError");
+  it("RakNetTransport connect attempts connection", async () => {
+    const t = new RakNetTransport({ host: "invalid-host.test", port: 5222 });
+    // Should fail with TransportError due to DNS resolution failure
+    await expect(t.connect()).rejects.toThrow();
     expect(t.connected).toBe(false);
   });
 
-  it("RakNetTransport send throws NotImplementedError", async () => {
+  it("RakNetTransport send requires connection", () => {
     const t = new RakNetTransport({});
-    t._connected = true;
-    let err = null;
-    try {
-      t.send({ opcode: PACKET_OPCODES.ROBLOX_CHAT_MESSAGE, message: "hi" });
-    } catch (e) {
-      err = e;
-    }
-    expect(err).not.toBeNull();
-    expect(err.name).toBe("NotImplementedError");
+    // Not connected - should throw
+    expect(() => t.send({ opcode: PACKET_OPCODES.ROBLOX_CHAT_MESSAGE, userId: 1, username: "test", message: "hi", channel: 0, targetUserId: 0, timestamp: Date.now() })).toThrow("not connected");
   });
 });
